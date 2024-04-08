@@ -54,8 +54,16 @@ class BayesClassifier:
 
         # files now holds a list of the filenames
         # self.training_data_directory holds the folder name where these files are
-        
-
+        for index, filename in enumerate(files, 1): # type: ignore
+            print("--------------------------------------")
+            print(f"Training on file {index} of {len(files)}")
+            print(filename)
+            text = self.load_file(os.path.join(self.training_data_directory, filename))
+            tokens = self.tokenize(text)
+            if filename.startswith(self.pos_file_prefix):
+                self.update_dict(tokens, self.pos_freqs)
+            elif filename.startswith(self.neg_file_prefix):
+                self.update_dict(tokens, self.neg_freqs)
         # stored below is how you would load a file with filename given by `fName`
         # `text` here will be the literal text of the file (i.e. what you would see
         # if you opened the file in a text editor
@@ -98,7 +106,8 @@ class BayesClassifier:
         # avoid extra work in the future (using the save_dict method). The objects you
         # are saving are self.pos_freqs and self.neg_freqs and the filepaths to save to
         # are self.pos_filename and self.neg_filename
-
+        self.save_dict(self.pos_freqs, self.pos_filename)
+        self.save_dict(self.neg_freqs, self.neg_filename)
     def classify(self, text: str) -> str:
         """Classifies given text as positive, negative or neutral from calculating the
         most likely document class to which the target string belongs
@@ -113,33 +122,47 @@ class BayesClassifier:
 
         
         # get a list of the individual tokens that occur in text
-        
+        tokens=self.tokenize(text)
 
         # create some variables to store the positive and negative probability. since
         # we will be adding logs of probabilities, the initial values for the positive
         # and negative probabilities are set to 0
-        
+        pos_prob=0
+        neg_prob=0
 
         # get the sum of all of the frequencies of the features in each document class
         # (i.e. how many words occurred in all documents for the given class) - this
         # will be used in calculating the probability of each document class given each
         # individual feature
-        
+        num_pos_words=sum(self.pos_freqs.values())
+        num_neg_words=sum(self.neg_freqs.values())
 
         # for each token in the text, calculate the probability of it occurring in a
         # postive document and in a negative document and add the logs of those to the
         # running sums. when calculating the probabilities, always add 1 to the numerator
         # of each probability for add one smoothing (so that we never have a probability
         # of 0)
-
+        for word in tokens:
+            num_pos_appearances=1
+            if(word in self.pos_freqs):
+                num_pos_appearances+=self.pos_freqs[word]
+            pos_prob +=math.log(num_pos_appearances/num_pos_words)
+            num_neg_appearances=1
+            if(word in self.neg_freqs):
+                num_neg_appearances+=self.pos_freqs[word]
+            neg_prob +=math.log(num_neg_appearances/num_neg_words)
 
         # for debugging purposes, it may help to print the overall positive and negative
         # probabilities
-        
+        print(f"Positive Probability: {pos_prob}")
+        print(f"Negative Probability: {neg_prob}")
 
         # determine whether positive or negative was more probable (i.e. which one was
         # larger)
-        
+        if(neg_prob>pos_prob):
+            return "positive"
+        else:
+            return "negative"
 
         # return a string of "positive" or "negative"
 
@@ -222,7 +245,11 @@ class BayesClassifier:
             freqs - dictionary of frequencies to update
         """
         # TODO: your work here
-        pass  # remove this line once you've implemented this method
+        for word in words:
+            if word in freqs:
+                freqs[word] += 1 
+            else:
+                freqs[word] = 1
 
 
 if __name__ == "__main__":
